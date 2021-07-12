@@ -9,7 +9,7 @@ You'll need bazel installed to use this sale
 
 once its setup, you can run it to encrypt
 ```bash
-$ bazel run //main:bssl_siv
+$ bazel run //main:bssl_aes_cbc
 
 Ciphertext is:
 4G9jpxHot6qflEAQfUaAoReZQ4DqMdKimblTAtQ5uXAsjmWpkjbskgcEkVzxqYpE
