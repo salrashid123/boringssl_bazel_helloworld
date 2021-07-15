@@ -7,3 +7,12 @@ cc_binary(
         "@boringssl//:ssl",
     ],
 )
+
+cc_binary(
+    name = "bssl_aes_siv",
+    srcs = ["bssl_aes_siv.cc"],
+    deps = [
+        "//lib:bssl_lib",
+        "@boringssl//:ssl",
+    ],
+)

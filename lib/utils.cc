@@ -31,10 +31,18 @@
 
 */
 
-#include "lib/base64.h"
+#include "lib/utils.h"
 
 #include <algorithm>
 #include <stdexcept>
+#include <ctime>
+#include <string>
+#include <iostream>
+#include <string.h>  
+#include <vector>
+#include <sstream>
+
+#include <openssl/obj.h>
 
  //
  // Depending on the url parameter in base64_chars, one of
@@ -280,3 +288,103 @@ std::string base64_decode(std::string_view s, bool remove_linebreaks) {
 }
 
 #endif  // __cplusplus >= 201703L
+
+
+// Bytes is a wrapper over a byte slice which may be compared for equality. This
+// allows it to be used in EXPECT_EQ macros.
+struct Bytes {
+  Bytes(const uint8_t *data_arg, size_t len_arg)
+      : span_(data_arg, len_arg) {}
+  Bytes(const char *data_arg, size_t len_arg)
+      : span_(reinterpret_cast<const uint8_t *>(data_arg), len_arg) {}
+
+  explicit Bytes(const char *str)
+      : span_(reinterpret_cast<const uint8_t *>(str), strlen(str)) {}
+  explicit Bytes(const std::string &str)
+      : span_(reinterpret_cast<const uint8_t *>(str.data()), str.size()) {}
+  explicit Bytes(bssl::Span<const uint8_t> span)
+      : span_(span) {}
+
+  bssl::Span<const uint8_t> span_;
+};
+
+
+void hexdump(FILE *fp, const char *msg, const void *in, size_t len) {
+  const uint8_t *data = reinterpret_cast<const uint8_t*>(in);
+
+  fputs(msg, fp);
+  for (size_t i = 0; i < len; i++) {
+    fprintf(fp, "%02x", data[i]);
+  }
+  fputs("\n", fp);
+}
+
+std::string EncodeHex(bssl::Span<const uint8_t> in) {
+  static const char kHexDigits[] = "0123456789abcdef";
+  std::string ret;
+  ret.reserve(in.size() * 2);
+  for (uint8_t b : in) {
+    ret += kHexDigits[b >> 4];
+    ret += kHexDigits[b & 0xf];
+  }
+  return ret;
+}
+
+std::ostream &operator<<(std::ostream &os, const Bytes &in) {
+  if (in.span_.empty()) {
+    return os << "<empty Bytes>";
+  }
+
+  // Print a byte slice as hex.
+  os << EncodeHex(in.span_);
+  return os;
+}
+
+static bool FromHexDigit(uint8_t *out, char c) {
+  if ('0' <= c && c <= '9') {
+    *out = c - '0';
+    return true;
+  }
+  if ('a' <= c && c <= 'f') {
+    *out = c - 'a' + 10;
+    return true;
+  }
+  if ('A' <= c && c <= 'F') {
+    *out = c - 'A' + 10;
+    return true;
+  }
+  return false;
+}
+
+bool DecodeHex(std::vector<uint8_t> *out, const std::string &in) {
+  out->clear();
+  if (in.size() % 2 != 0) {
+    return false;
+  }
+  out->reserve(in.size() / 2);
+  for (size_t i = 0; i < in.size(); i += 2) {
+    uint8_t hi, lo;
+    if (!FromHexDigit(&hi, in[i]) ||
+        !FromHexDigit(&lo, in[i + 1])) {
+      return false;
+    }
+    out->push_back((hi << 4) | lo);
+  }
+  return true;
+}
+
+
+
+bool ConvertToBytes(std::vector<uint8_t> *out,
+                              const std::string &value) {
+  if (value.size() >= 2 && value[0] == '"' && value[value.size() - 1] == '"') {
+    out->assign(value.begin() + 1, value.end() - 1);
+    return true;
+  }
+
+  if (!DecodeHex(out, value)) {
+    printf("Error decoding value: %s", value.c_str());
+    return false;
+  }
+  return true;
+}

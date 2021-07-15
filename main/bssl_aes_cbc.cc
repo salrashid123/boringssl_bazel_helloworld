@@ -4,7 +4,7 @@
 #include <string.h>  
 #include <vector>
 
-#include "lib/base64.h"
+#include "lib/utils.h"
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>

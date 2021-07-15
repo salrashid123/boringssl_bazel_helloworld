@@ -7,6 +7,9 @@
 #define BASE64_H_C0CE2A47_D10E_42C9_A27C_C883944E704A
 
 #include <string>
+#include <vector>
+
+bool ConvertToBytes(std::vector<uint8_t> *out, const std::string &value);
 
 #if __cplusplus >= 201703L
 #include <string_view>
